@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { AlertCircle } from 'lucide-react';
+import sideDrawing from './VixxenSideDrawing.svg';
 
 const VixxenWBCalculator = () => {
   const [selectedReg, setSelectedReg] = useState('23-8666');
@@ -42,7 +43,7 @@ const VixxenWBCalculator = () => {
   const YLIL_RESERVE_MULTIPLIER = 0.10;
   const MAX_BAGGAGE = 30;
   const FUEL_DENSITY = 0.72;
-  const CG_MIN = 1.53;
+  const CG_MIN = 1.528;
   const CG_MAX = 1.78;
 
   const aircraft = regData[selectedReg];
@@ -259,12 +260,14 @@ const VixxenWBCalculator = () => {
     setTaxiFuel(defaultTaxiFuel);
   };
 
-  const getSvgX = (meters) => {
-    const svgDatumX = 15.0039;
-    const scale = 70.7313;
-    const correction = 14.3414;
-    const lineLength = (scale * meters) - correction;
-    return svgDatumX + lineLength;
+  // --- CG diagram helpers (aircraft overlay) ---
+  const PT_PER_METER = 1 / 0.01417;
+  const SVG_TOTAL_PT = 442.35;
+  const DATUM_OFFSET_PT = 15;
+
+  const armToPercent = (arm) => {
+    const pointPosition = DATUM_OFFSET_PT + arm * PT_PER_METER;
+    return (pointPosition / SVG_TOTAL_PT) * 100;
   };
 
   const getBarWidth = (weight, total) => {
@@ -275,13 +278,60 @@ const VixxenWBCalculator = () => {
     return Math.max((liters / total) * 100, 0);
   };
 
+  // --- CG marker data for diagram ---
+  const safeRangeStart = armToPercent(CG_MIN);
+  const safeRangeEnd = armToPercent(CG_MAX);
+  const safeRangeWidth = safeRangeEnd - safeRangeStart;
+
+  const MARKER_AXIS_PERCENT = 54;
+  const MARKER_LINE_LENGTH = 84; // keep markers clear of the fuselage before labels render
+
+  const cgMarkers = [
+    {
+      key: 'empty',
+      label: `Empty ${aircraft.emptyArm.toFixed(3)} m`,
+      arm: aircraft.emptyArm,
+      color: 'bg-indigo-400',
+      labelTint: 'bg-slate-900/95 border border-indigo-400/40 text-indigo-100',
+    },
+    {
+      key: 'crew',
+      label: `Crew ${aircraft.crewArm.toFixed(3)} m`,
+      arm: aircraft.crewArm,
+      color: 'bg-emerald-400',
+      labelTint: 'bg-slate-900/95 border border-emerald-400/40 text-emerald-100',
+    },
+    {
+      key: 'baggage',
+      label: `Baggage ${aircraft.baggageArm.toFixed(3)} m`,
+      arm: aircraft.baggageArm,
+      color: 'bg-amber-400',
+      labelTint: 'bg-slate-900/95 border border-amber-400/40 text-amber-100',
+    },
+    {
+      key: 'fuel',
+      label: `Fuel ${aircraft.fuelArm.toFixed(3)} m`,
+      arm: aircraft.fuelArm,
+      color: 'bg-sky-400',
+      labelTint: 'bg-slate-900/95 border border-sky-400/40 text-sky-100',
+    },
+  ];
+
+  const totalMarker = {
+    key: 'total',
+    label: `Total CG ${calculations.cg.toFixed(3)} m`,
+    arm: calculations.cg,
+    color: 'bg-blue-500',
+    labelTint: 'bg-blue-500/15 border border-blue-400/60 text-blue-100 shadow-blue-500/30',
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 p-4">
       <div className="max-w-7xl mx-auto">
         <div className="bg-slate-900 rounded-lg shadow-2xl border border-slate-800 p-6">
           <div className="border-b border-slate-700 pb-4 mb-6">
             <h1 className="text-2xl font-bold text-slate-100 tracking-tight">
-              Vixxen Weight & Balance Calculator
+              Vixxen Calculator
             </h1>
             <p className="text-slate-400 text-sm mt-1">Aircraft Performance Management System</p>
             
@@ -451,73 +501,77 @@ const VixxenWBCalculator = () => {
                       <span className="text-slate-500 font-medium">{CG_MIN} - {CG_MAX} m</span>
                     </div>
                     
-                    <div className="mt-3">
-                      <div className="h-8 bg-slate-950 rounded relative overflow-hidden">
-                        <div className="absolute inset-0 bg-gradient-to-r from-red-900/40 via-emerald-900/40 to-red-900/40"></div>
-                        
-                        {/* Individual CG markers - subtle */}
-                        <div 
-                          className="absolute top-0 bottom-0 w-px bg-indigo-400/50"
-                          style={{ left: `${((aircraft.emptyArm - CG_MIN) / (CG_MAX - CG_MIN)) * 100}%` }}
-                          title={`Empty: ${aircraft.emptyArm}m`}
-                        >
-                          <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 text-indigo-400 text-xs">E</div>
-                        </div>
-                        
-                        <div 
-                          className="absolute top-0 bottom-0 w-px bg-emerald-400/50"
-                          style={{ left: `${((aircraft.crewArm - CG_MIN) / (CG_MAX - CG_MIN)) * 100}%` }}
-                          title={`Crew: ${aircraft.crewArm}m`}
-                        >
-                          <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 text-emerald-400 text-xs">P</div>
-                        </div>
-                        
-                        <div 
-                          className="absolute top-0 bottom-0 w-px bg-amber-400/50"
-                          style={{ left: `${((aircraft.baggageArm - CG_MIN) / (CG_MAX - CG_MIN)) * 100}%` }}
-                          title={`Baggage: ${aircraft.baggageArm}m`}
-                        >
-                          <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 text-amber-400 text-xs">B</div>
-                        </div>
-                        
-                        <div 
-                          className="absolute top-0 bottom-0 w-px bg-sky-400/50"
-                          style={{ left: `${((aircraft.fuelArm - CG_MIN) / (CG_MAX - CG_MIN)) * 100}%` }}
-                          title={`Fuel: ${aircraft.fuelArm}m`}
-                        >
-                          <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 text-sky-400 text-xs">F</div>
-                        </div>
-                        
-                        {/* Total CG marker - prominent */}
-                        <div 
-                          className="absolute top-0 bottom-0 w-0.5 bg-blue-400 shadow-lg shadow-blue-500/50 z-10"
-                          style={{ left: `${((calculations.cg - CG_MIN) / (CG_MAX - CG_MIN)) * 100}%` }}
-                        >
-                          <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 bg-slate-700 text-blue-400 px-2 py-0.5 rounded text-xs font-semibold whitespace-nowrap border border-slate-600">
-                            {calculations.cg.toFixed(3)}
-                          </div>
+                    <div className="mt-3 space-y-3">
+                      {/* --- Aircraft CG diagram replaces legacy bar graph --- */}
+                      <div className="relative bg-slate-950/80 border border-slate-800 rounded-lg overflow-hidden pb-20">
+                        {/* lighten the SVG to improve contrast on the dark theme */}
+                        <img
+                          src={sideDrawing}
+                          alt="Vixxen aircraft side profile"
+                          className="w-full h-auto opacity-95 invert brightness-150"
+                        />
+                        <div className="absolute inset-0 pointer-events-none">
+                          <div
+                            className="absolute top-0 bottom-[5rem] bg-emerald-500/15 border-x border-emerald-400/60"
+                            style={{ left: `${safeRangeStart}%`, width: `${safeRangeWidth}%` }}
+                          ></div>
+
+                          {[...cgMarkers, totalMarker].map((marker) => (
+                            <div
+                              key={marker.key}
+                              className={`absolute flex flex-col items-center -translate-x-1/2 ${
+                                marker.key === 'total' ? 'z-10' : ''
+                              }`}
+                              style={{ left: `${armToPercent(marker.arm)}%`, top: `${MARKER_AXIS_PERCENT}%` }}
+                            >
+                              <div
+                                className={`${
+                                  marker.key === 'total'
+                                    ? 'w-4 h-4 border-2 border-white shadow-lg'
+                                    : 'w-3 h-3 border border-slate-900 shadow shadow-black/40'
+                                } ${marker.color}`}
+                                style={{ marginTop: marker.key === 'total' ? '-8px' : '-6px', borderRadius: '9999px' }}
+                              ></div>
+                              <div
+                                className={`${
+                                  marker.key === 'total' ? 'bg-blue-400/70' : 'bg-slate-500/60'
+                                } w-px`}
+                                style={{ height: MARKER_LINE_LENGTH }}
+                              ></div>
+                              <span
+                                className={`mt-2 px-2 py-0.5 text-[10px] font-medium rounded shadow ${marker.labelTint}`}
+                              >
+                                {marker.label}
+                              </span>
+                            </div>
+                          ))}
                         </div>
                       </div>
-                      <div className="flex justify-between text-xs mt-1 text-slate-500">
-                        <span>{CG_MIN}</span>
-                        <span>{CG_MAX}</span>
-                      </div>
-                      <div className="flex gap-3 mt-2 text-xs justify-center">
+
+                      <div className="flex flex-wrap items-center justify-center gap-3 text-[11px] text-slate-400">
                         <div className="flex items-center gap-1">
-                          <div className="w-2 h-2 bg-indigo-400/50 rounded-full"></div>
-                          <span className="text-slate-500">E: Empty</span>
+                          <span className="w-2.5 h-2.5 rounded-full bg-indigo-400"></span>
+                          <span>Empty</span>
                         </div>
                         <div className="flex items-center gap-1">
-                          <div className="w-2 h-2 bg-emerald-400/50 rounded-full"></div>
-                          <span className="text-slate-500">P: Pax</span>
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+                          <span>Crew</span>
                         </div>
                         <div className="flex items-center gap-1">
-                          <div className="w-2 h-2 bg-amber-400/50 rounded-full"></div>
-                          <span className="text-slate-500">B: Bag</span>
+                          <span className="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+                          <span>Baggage</span>
                         </div>
                         <div className="flex items-center gap-1">
-                          <div className="w-2 h-2 bg-sky-400/50 rounded-full"></div>
-                          <span className="text-slate-500">F: Fuel</span>
+                          <span className="w-2.5 h-2.5 rounded-full bg-sky-400"></span>
+                          <span>Fuel</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="w-3 h-3 rounded-full border border-white bg-blue-500"></span>
+                          <span>Total CG</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="w-6 h-1 rounded bg-emerald-400/60 border border-emerald-500/60"></span>
+                          <span>Safe Range</span>
                         </div>
                       </div>
                     </div>
