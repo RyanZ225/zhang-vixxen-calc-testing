@@ -290,6 +290,9 @@ const VixxenWBCalculator = () => {
   const REG_TEXT_Y_PERCENT = (97.053 / SVG_HEIGHT_PT) * 100;
 
   // --- CG marker configuration keeps geometry tweaks in one place ---
+  const MARKER_AXIS_PERCENT = 54;
+  const MARKER_LINE_LENGTH = 84; // keep markers clear of the fuselage before labels render
+
   const cgMarkers = [
     {
       key: 'empty',
@@ -300,6 +303,7 @@ const VixxenWBCalculator = () => {
       labelPosition: 'top',
       lineLength: 52,
       labelGap: 10,
+      labelTint: 'bg-slate-900/95 border border-indigo-400/40 text-indigo-100',
     },
     {
       key: 'crew',
@@ -310,6 +314,7 @@ const VixxenWBCalculator = () => {
       labelPosition: 'bottom',
       lineLength: 58,
       labelGap: 12,
+      labelTint: 'bg-slate-900/95 border border-emerald-400/40 text-emerald-100',
     },
     {
       key: 'baggage',
@@ -320,6 +325,7 @@ const VixxenWBCalculator = () => {
       labelPosition: 'bottom',
       lineLength: 66,
       labelGap: 14,
+      labelTint: 'bg-slate-900/95 border border-amber-400/40 text-amber-100',
     },
     {
       key: 'fuel',
@@ -330,6 +336,7 @@ const VixxenWBCalculator = () => {
       labelPosition: 'top',
       lineLength: 60,
       labelGap: 10,
+      labelTint: 'bg-slate-900/95 border border-sky-400/40 text-sky-100',
     },
   ];
 
@@ -345,6 +352,8 @@ const VixxenWBCalculator = () => {
   };
 
   const registrationLabel = selectedReg !== 'Generic' ? selectedReg : '';
+    labelTint: 'bg-blue-500/15 border border-blue-400/60 text-blue-100 shadow-blue-500/30',
+  };
 
   return (
     <div className="min-h-screen bg-slate-950 p-4">
@@ -603,6 +612,48 @@ const VixxenWBCalculator = () => {
                               );
                             })}
                           </div>
+                      <div className="relative bg-slate-950/80 border border-slate-800 rounded-lg overflow-hidden pb-20">
+                        {/* lighten the SVG to improve contrast on the dark theme */}
+                        <img
+                          src={sideDrawing}
+                          alt="Vixxen aircraft side profile"
+                          className="w-full h-auto opacity-95 invert brightness-150"
+                        />
+                        <div className="absolute inset-0 pointer-events-none">
+                          <div
+                            className="absolute top-0 bottom-[5rem] bg-emerald-500/15 border-x border-emerald-400/60"
+                            style={{ left: `${safeRangeStart}%`, width: `${safeRangeWidth}%` }}
+                          ></div>
+
+                          {[...cgMarkers, totalMarker].map((marker) => (
+                            <div
+                              key={marker.key}
+                              className={`absolute flex flex-col items-center -translate-x-1/2 ${
+                                marker.key === 'total' ? 'z-10' : ''
+                              }`}
+                              style={{ left: `${armToPercent(marker.arm)}%`, top: `${MARKER_AXIS_PERCENT}%` }}
+                            >
+                              <div
+                                className={`${
+                                  marker.key === 'total'
+                                    ? 'w-4 h-4 border-2 border-white shadow-lg'
+                                    : 'w-3 h-3 border border-slate-900 shadow shadow-black/40'
+                                } ${marker.color}`}
+                                style={{ marginTop: marker.key === 'total' ? '-8px' : '-6px', borderRadius: '9999px' }}
+                              ></div>
+                              <div
+                                className={`${
+                                  marker.key === 'total' ? 'bg-blue-400/70' : 'bg-slate-500/60'
+                                } w-px`}
+                                style={{ height: MARKER_LINE_LENGTH }}
+                              ></div>
+                              <span
+                                className={`mt-2 px-2 py-0.5 text-[10px] font-medium rounded shadow ${marker.labelTint}`}
+                              >
+                                {marker.label}
+                              </span>
+                            </div>
+                          ))}
                         </div>
                       </div>
 
