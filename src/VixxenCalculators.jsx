@@ -263,12 +263,15 @@ const VixxenWBCalculator = () => {
   // --- CG diagram helpers (aircraft overlay) ---
   const PT_PER_METER = 1 / 0.01417;
   const SVG_TOTAL_PT = 442.35;
+  const SVG_HEIGHT_PT = 163.95;
   const DATUM_OFFSET_PT = 15;
 
   const armToPercent = (arm) => {
     const pointPosition = DATUM_OFFSET_PT + arm * PT_PER_METER;
     return (pointPosition / SVG_TOTAL_PT) * 100;
   };
+
+  const ptToPercentY = (pt) => (pt / SVG_HEIGHT_PT) * 100;
 
   const getBarWidth = (weight, total) => {
     return Math.max((weight / total) * 100, 0);
@@ -283,6 +286,10 @@ const VixxenWBCalculator = () => {
   const safeRangeEnd = armToPercent(CG_MAX);
   const safeRangeWidth = safeRangeEnd - safeRangeStart;
 
+  const REG_TEXT_X_PERCENT = (302.436 / SVG_TOTAL_PT) * 100;
+  const REG_TEXT_Y_PERCENT = (97.053 / SVG_HEIGHT_PT) * 100;
+
+  // --- CG marker configuration keeps geometry tweaks in one place ---
   const MARKER_AXIS_PERCENT = 54;
   const MARKER_LINE_LENGTH = 84; // keep markers clear of the fuselage before labels render
 
@@ -292,6 +299,10 @@ const VixxenWBCalculator = () => {
       label: `Empty ${aircraft.emptyArm.toFixed(3)} m`,
       arm: aircraft.emptyArm,
       color: 'bg-indigo-400',
+      yPercent: ptToPercentY(87.2),
+      labelPosition: 'top',
+      lineLength: 52,
+      labelGap: 10,
       labelTint: 'bg-slate-900/95 border border-indigo-400/40 text-indigo-100',
     },
     {
@@ -299,6 +310,10 @@ const VixxenWBCalculator = () => {
       label: `Crew ${aircraft.crewArm.toFixed(3)} m`,
       arm: aircraft.crewArm,
       color: 'bg-emerald-400',
+      yPercent: ptToPercentY(87.2),
+      labelPosition: 'bottom',
+      lineLength: 58,
+      labelGap: 12,
       labelTint: 'bg-slate-900/95 border border-emerald-400/40 text-emerald-100',
     },
     {
@@ -306,6 +321,10 @@ const VixxenWBCalculator = () => {
       label: `Baggage ${aircraft.baggageArm.toFixed(3)} m`,
       arm: aircraft.baggageArm,
       color: 'bg-amber-400',
+      yPercent: ptToPercentY(111.29),
+      labelPosition: 'bottom',
+      lineLength: 66,
+      labelGap: 14,
       labelTint: 'bg-slate-900/95 border border-amber-400/40 text-amber-100',
     },
     {
@@ -313,6 +332,10 @@ const VixxenWBCalculator = () => {
       label: `Fuel ${aircraft.fuelArm.toFixed(3)} m`,
       arm: aircraft.fuelArm,
       color: 'bg-sky-400',
+      yPercent: ptToPercentY(52.05),
+      labelPosition: 'top',
+      lineLength: 60,
+      labelGap: 10,
       labelTint: 'bg-slate-900/95 border border-sky-400/40 text-sky-100',
     },
   ];
@@ -322,6 +345,13 @@ const VixxenWBCalculator = () => {
     label: `Total CG ${calculations.cg.toFixed(3)} m`,
     arm: calculations.cg,
     color: 'bg-blue-500',
+    yPercent: ptToPercentY(87.2),
+    labelPosition: 'top',
+    lineLength: 82,
+    labelGap: 14,
+  };
+
+  const registrationLabel = selectedReg !== 'Generic' ? selectedReg : '';
     labelTint: 'bg-blue-500/15 border border-blue-400/60 text-blue-100 shadow-blue-500/30',
   };
 
@@ -503,6 +533,85 @@ const VixxenWBCalculator = () => {
                     
                     <div className="mt-3 space-y-3">
                       {/* --- Aircraft CG diagram replaces legacy bar graph --- */}
+                      <div className="relative bg-slate-950/80 border border-slate-800 rounded-lg overflow-hidden py-12">
+                        {/* --- Aircraft illustration with neutral tint for clarity --- */}
+                        <div className="relative mx-auto flex items-center justify-center">
+                          <img
+                            src={sideDrawing}
+                            alt="Vixxen aircraft side profile"
+                            className="w-full h-auto max-w-full opacity-95 invert brightness-150"
+                          />
+                          <div className="absolute inset-0 pointer-events-none">
+                            {/* --- Safe CG envelope shading --- */}
+                            <div
+                              className="absolute inset-y-0 bg-emerald-500/15 border-x border-emerald-400/60"
+                              style={{ left: `${safeRangeStart}%`, width: `${safeRangeWidth}%` }}
+                            ></div>
+
+                            {/* --- Registration placard (toggles with aircraft selection) --- */}
+                            {registrationLabel && (
+                              <span
+                                className="absolute text-[19px] font-semibold tracking-wide text-slate-200"
+                                style={{
+                                  left: `${REG_TEXT_X_PERCENT}%`,
+                                  top: `${REG_TEXT_Y_PERCENT}%`,
+                                  transform: 'translate(-50%, -50%)',
+                                }}
+                              >
+                                {registrationLabel}
+                              </span>
+                            )}
+
+                            {/* --- Marker plotting with connector lines and plain labels --- */}
+                            {[...cgMarkers, totalMarker].map((marker) => {
+                              const isTotal = marker.key === 'total';
+                              const markerLeft = `${armToPercent(marker.arm)}%`;
+                              const markerTop = `${marker.yPercent}%`;
+                              const lineColor = isTotal ? 'bg-blue-400/70' : 'bg-slate-400/80';
+                              const textColor = isTotal ? 'text-blue-100' : 'text-slate-200';
+
+                              return (
+                                <div
+                                  key={marker.key}
+                                  className={`absolute -translate-x-1/2 -translate-y-1/2 ${isTotal ? 'z-10' : 'z-0'}`}
+                                  style={{ left: markerLeft, top: markerTop }}
+                                >
+                                  {marker.labelPosition === 'top' && (
+                                    <div className="flex flex-col items-center">
+                                      <span
+                                        className={`text-[11px] font-medium ${textColor}`}
+                                        style={{ marginBottom: marker.labelGap }}
+                                      >
+                                        {marker.label}
+                                      </span>
+                                      <div className={`${lineColor} w-px`} style={{ height: marker.lineLength }}></div>
+                                    </div>
+                                  )}
+
+                                  <div
+                                    className={`${
+                                      isTotal
+                                        ? 'w-4 h-4 border-2 border-white shadow-lg shadow-blue-500/40'
+                                        : 'w-3 h-3 border border-slate-900/80 shadow-sm shadow-black/30'
+                                    } ${marker.color}`}
+                                    style={{ borderRadius: '9999px' }}
+                                  ></div>
+
+                                  {marker.labelPosition === 'bottom' && (
+                                    <div className="flex flex-col items-center">
+                                      <div className={`${lineColor} w-px`} style={{ height: marker.lineLength }}></div>
+                                      <span
+                                        className={`text-[11px] font-medium ${textColor}`}
+                                        style={{ marginTop: marker.labelGap }}
+                                      >
+                                        {marker.label}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
                       <div className="relative bg-slate-950/80 border border-slate-800 rounded-lg overflow-hidden pb-20">
                         {/* lighten the SVG to improve contrast on the dark theme */}
                         <img
